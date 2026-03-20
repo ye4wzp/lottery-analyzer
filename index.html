@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>彩票数据分析大师 | 智能走势分析与号码推荐</title>
+    <meta name="description" content="基于大数据统计分析的中国福利彩票、体育彩票智能分析工具，支持双色球、大乐透、福彩3D、七乐彩、排列三、排列五走势分析与号码推荐。">
+    <meta name="theme-color" content="#0a0a1a">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Noto+Sans+SC:wght@300;400;500;600;700;900&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <!-- Background particles -->
+    <div class="bg-particles" id="bgParticles"></div>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <div class="logo-icon">
+                    <span class="ball ball-red">7</span>
+                    <span class="ball ball-blue">12</span>
+                </div>
+                <div class="logo-text">
+                    <h1>彩票数据分析大师</h1>
+                    <p class="logo-subtitle">AI 智能走势分析 · 统计学号码推荐</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <!-- Countdown timer -->
+                <div class="countdown-badge" id="countdownBadge" title="距下期开奖">
+                    <span class="countdown-icon">⏰</span>
+                    <span class="countdown-text" id="countdownText">--:--:--</span>
+                </div>
+                <button class="btn-data-source" id="btnDataSource" onclick="showDataSourceModal()">
+                    <span class="data-status-dot" id="dataStatusDot"></span>
+                    <span id="dataSourceLabel">模拟数据</span>
+                </button>
+                <!-- Theme toggle -->
+                <button class="btn-theme-toggle" id="btnThemeToggle" onclick="toggleTheme()" title="切换主题">
+                    🌙
+                </button>
+                <div class="disclaimer-badge">
+                    <span class="pulse-dot"></span>
+                    仅供参考 · 理性购彩
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Lottery Type Selector - 6 types -->
+    <nav class="lottery-nav">
+        <div class="nav-inner">
+            <div class="nav-group">
+                <div class="nav-group-label">福彩</div>
+                <div class="nav-group-btns">
+                    <button class="nav-btn active" data-type="ssq">
+                        <span class="nav-icon">🔴🔵</span>
+                        <div class="nav-text">
+                            <span class="nav-label">双色球</span>
+                            <span class="nav-desc">红球1-33 蓝球1-16</span>
+                        </div>
+                    </button>
+                    <button class="nav-btn" data-type="fc3d">
+                        <span class="nav-icon">🎰</span>
+                        <div class="nav-text">
+                            <span class="nav-label">福彩3D</span>
+                            <span class="nav-desc">3位数 0-9</span>
+                        </div>
+                    </button>
+                    <button class="nav-btn" data-type="qlc">
+                        <span class="nav-icon">🎲🎯</span>
+                        <div class="nav-text">
+                            <span class="nav-label">七乐彩</span>
+                            <span class="nav-desc">基本号1-30 特别号</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+            <div class="nav-group">
+                <div class="nav-group-label">体彩</div>
+                <div class="nav-group-btns">
+                    <button class="nav-btn" data-type="dlt">
+                        <span class="nav-icon">⭐🌙</span>
+                        <div class="nav-text">
+                            <span class="nav-label">大乐透</span>
+                            <span class="nav-desc">前区1-35 后区1-12</span>
+                        </div>
+                    </button>
+                    <button class="nav-btn" data-type="pl3">
+                        <span class="nav-icon">🏅3️⃣</span>
+                        <div class="nav-text">
+                            <span class="nav-label">排列三</span>
+                            <span class="nav-desc">3位数 0-9</span>
+                        </div>
+                    </button>
+                    <button class="nav-btn" data-type="pl5">
+                        <span class="nav-icon">🏅5️⃣</span>
+                        <div class="nav-text">
+                            <span class="nav-label">排列五</span>
+                            <span class="nav-desc">5位数 0-9</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Stats Overview Cards -->
+        <section class="stats-overview" id="statsOverview">
+            <div class="stat-card glass-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" id="statTotalDraws">0</div>
+                <div class="stat-label">历史期数</div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-icon">🔥</div>
+                <div class="stat-value" id="statHotNumber">-</div>
+                <div class="stat-label">最热号码</div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-icon">❄️</div>
+                <div class="stat-value" id="statColdNumber">-</div>
+                <div class="stat-label">最冷号码</div>
+            </div>
+            <div class="stat-card glass-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-value" id="statAvgSum">0</div>
+                <div class="stat-label">平均和值</div>
+            </div>
+        </section>
+
+        <!-- Latest Draw -->
+        <section class="section glass-card" id="latestDraw">
+            <div class="section-header">
+                <h2><span class="section-icon">🎯</span> 最新开奖</h2>
+                <span class="draw-info" id="latestDrawInfo">第 --- 期</span>
+            </div>
+            <div class="latest-numbers" id="latestNumbers"></div>
+        </section>
+
+        <!-- Tabs -->
+        <div class="tab-bar-wrapper">
+            <div class="tab-bar">
+                <button class="tab-btn active" data-tab="frequency">
+                    <span>📊</span> 频率分析
+                </button>
+                <button class="tab-btn" data-tab="trend">
+                    <span>📈</span> 走势图
+                </button>
+                <button class="tab-btn" data-tab="missing">
+                    <span>🔍</span> 遗漏分析
+                </button>
+                <button class="tab-btn" data-tab="pattern">
+                    <span>🧩</span> 形态分析
+                </button>
+                <button class="tab-btn" data-tab="predict">
+                    <span>🤖</span> 智能推荐
+                </button>
+                <button class="tab-btn" data-tab="history">
+                    <span>📋</span> 历史记录
+                </button>
+            </div>
+            <!-- Export dropdown -->
+            <div class="export-dropdown">
+                <button class="btn-export" id="btnExport">
+                    📥 导出数据 ▾
+                </button>
+                <div class="export-menu" id="exportMenu">
+                    <button onclick="exportHistoryCSV()">📄 历史数据 (CSV)</button>
+                    <button onclick="exportAnalysisCSV()">📊 统计分析 (CSV)</button>
+                    <button onclick="exportPredictionsTxt()">📝 推荐号码 (TXT)</button>
+                    <button onclick="exportPredictionsImg()">🖼️ 推荐号码 (图片)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Frequency Analysis -->
+        <section class="tab-content active" id="contentFrequency">
+            <div class="content-grid">
+                <div class="glass-card chart-card">
+                    <h3><span class="section-icon">🔴</span> <span class="main-name-label">红球</span>号码频率</h3>
+                    <div class="chart-container">
+                        <canvas id="chartMainFreq"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card chart-card" id="bonusChartCard">
+                    <h3><span class="section-icon">🔵</span> <span class="bonus-name-label">蓝球</span>号码频率</h3>
+                    <div class="chart-container">
+                        <canvas id="chartSecondFreq"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="content-grid grid-2">
+                <div class="glass-card">
+                    <h3>🔥 热号 TOP 10（近50期高频）</h3>
+                    <div class="number-list" id="hotNumbers"></div>
+                </div>
+                <div class="glass-card">
+                    <h3>❄️ 冷号 TOP 10（近50期低频）</h3>
+                    <div class="number-list" id="coldNumbers"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Content: Trend Chart -->
+        <section class="tab-content" id="contentTrend">
+            <div class="glass-card chart-card">
+                <div class="trend-controls">
+                    <h3><span class="section-icon">📈</span> 号码走势图（近30期）</h3>
+                    <div class="trend-options">
+                        <label class="toggle-label">
+                            <input type="checkbox" id="showTrendLines" checked>
+                            <span class="toggle-slider"></span>
+                            连线
+                        </label>
+                    </div>
+                </div>
+                <div class="trend-chart-container">
+                    <canvas id="chartTrend"></canvas>
+                </div>
+            </div>
+            <div class="glass-card chart-card">
+                <h3><span class="section-icon">📊</span> 和值走势</h3>
+                <div class="chart-container">
+                    <canvas id="chartSumTrend"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Content: Missing Analysis -->
+        <section class="tab-content" id="contentMissing">
+            <div class="glass-card">
+                <h3><span class="section-icon">🔍</span> 号码遗漏值表</h3>
+                <p class="section-desc">遗漏值 = 该号码已经连续多少期未出现。遗漏值越大，理论上出现的概率越高（但不保证）。</p>
+                <div class="heatmap-container" id="missingHeatmap"></div>
+            </div>
+            <div class="content-grid grid-2">
+                <div class="glass-card">
+                    <h3>⚠️ 大遗漏号码（可能回补）</h3>
+                    <div class="number-list" id="bigMissingNumbers"></div>
+                </div>
+                <div class="glass-card">
+                    <h3>🔄 连续出现号码</h3>
+                    <div class="number-list" id="consecutiveNumbers"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Content: Pattern Analysis -->
+        <section class="tab-content" id="contentPattern">
+            <div class="content-grid grid-2">
+                <div class="glass-card chart-card">
+                    <h3><span class="section-icon">⚖️</span> 奇偶比分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chartOddEven"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card chart-card">
+                    <h3><span class="section-icon">📏</span> 大小比分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chartBigSmall"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="content-grid grid-2">
+                <div class="glass-card chart-card">
+                    <h3><span class="section-icon">📊</span> 和值分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chartSumDist"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card chart-card">
+                    <h3><span class="section-icon">🔗</span> 跨度分布</h3>
+                    <div class="chart-container">
+                        <canvas id="chartSpanDist"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="glass-card">
+                <h3><span class="section-icon">🎯</span> 区间分析</h3>
+                <div class="zone-analysis" id="zoneAnalysis"></div>
+            </div>
+        </section>
+
+        <!-- Tab Content: Prediction -->
+        <section class="tab-content" id="contentPredict">
+            <div class="glass-card prediction-card">
+                <div class="prediction-header">
+                    <h3><span class="section-icon">🤖</span> AI 智能号码推荐</h3>
+                    <p class="prediction-disclaimer">
+                        ⚠️ 以下推荐基于历史数据统计分析，仅供参考。彩票为随机事件，请理性购彩。
+                    </p>
+                </div>
+
+                <!-- Number Filter Panel -->
+                <div class="filter-panel" id="filterPanel">
+                    <div class="filter-header" onclick="toggleFilter()">
+                        <h4>🎯 号码过滤器</h4>
+                        <span class="filter-toggle" id="filterToggleIcon">▸</span>
+                    </div>
+                    <div class="filter-body" id="filterBody" style="display:none;">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>🔒 锁定号码 <small>（必选）</small></label>
+                                <input type="text" id="filterLocked" placeholder="例: 3,7,15" class="filter-input">
+                            </div>
+                            <div class="filter-group">
+                                <label>🚫 杀号 <small>（排除）</small></label>
+                                <input type="text" id="filterKilled" placeholder="例: 1,2,33" class="filter-input">
+                            </div>
+                        </div>
+                        <button class="btn-apply-filter" onclick="applyFilter()">✅ 应用过滤器</button>
+                    </div>
+                </div>
+
+                <!-- Multi-bet control -->
+                <div class="multi-bet-control">
+                    <label>生成注数：</label>
+                    <select id="betCount">
+                        <option value="1">1 注</option>
+                        <option value="3">3 注</option>
+                        <option value="5" selected>5 注</option>
+                        <option value="10">10 注</option>
+                    </select>
+                    <button class="btn-generate-all" onclick="generateAllPredictions()">
+                        ✨ 一键生成推荐
+                    </button>
+                    <button class="btn-export-pred" onclick="exportPredictionsImg()">
+                        🖼️ 导出图片
+                    </button>
+                </div>
+
+                <!-- Strategy Cards: 7 strategies -->
+                <div class="prediction-strategies">
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">🔥❄️</span>
+                            <div>
+                                <h4>冷热互补策略</h4>
+                                <p>结合高频热号和低频冷号，平衡选号</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictHotCold"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">📈</span>
+                            <div>
+                                <h4>趋势追踪策略</h4>
+                                <p>基于近期走势和遗漏值分析推荐</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictTrend"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">⚖️</span>
+                            <div>
+                                <h4>均衡优化策略</h4>
+                                <p>蒙特卡洛模拟，兼顾奇偶比、大小比</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictBalance"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">🔗</span>
+                            <div>
+                                <h4>马尔可夫链策略</h4>
+                                <p>基于号码转移概率矩阵预测</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictMarkov"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">🧠</span>
+                            <div>
+                                <h4>贝叶斯概率策略</h4>
+                                <p>先验频率 × 近期似然 → 后验概率</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictBayesian"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">📊</span>
+                            <div>
+                                <h4>移动平均策略</h4>
+                                <p>选择出现趋势上升的号码</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictMovingAvg"></div>
+                    </div>
+
+                    <div class="strategy-card">
+                        <div class="strategy-header">
+                            <span class="strategy-icon">🎲</span>
+                            <div>
+                                <h4>幸运随机策略</h4>
+                                <p>完全随机生成，给运气一个机会</p>
+                            </div>
+                        </div>
+                        <div class="strategy-numbers-list" id="predictRandom"></div>
+                    </div>
+                </div>
+
+                <!-- Backtest Panel -->
+                <div class="backtest-panel glass-card">
+                    <div class="backtest-header" onclick="toggleBacktest()">
+                        <h4>📊 策略回测验证</h4>
+                        <span class="filter-toggle" id="backtestToggleIcon">▸</span>
+                    </div>
+                    <div class="backtest-body" id="backtestBody" style="display:none;">
+                        <p class="section-desc">用历史数据回测各策略命中率，验证算法有效性。</p>
+                        <div class="backtest-actions">
+                            <select id="backtestPeriods">
+                                <option value="10">回测10期</option>
+                                <option value="20" selected>回测20期</option>
+                                <option value="30">回测30期</option>
+                            </select>
+                            <button class="btn-primary" onclick="runBacktest()">▶ 开始回测</button>
+                        </div>
+                        <div id="backtestResults"></div>
+                    </div>
+                </div>
+
+                <!-- Number Comparison -->
+                <div class="compare-panel glass-card">
+                    <div class="compare-header" onclick="toggleCompare()">
+                        <h4>🔢 号码对比</h4>
+                        <span class="filter-toggle" id="compareToggleIcon">▸</span>
+                    </div>
+                    <div class="compare-body" id="compareBody" style="display:none;">
+                        <p class="section-desc">输入你的号码，和历史开奖做匹配分析。</p>
+                        <div class="compare-input-row">
+                            <input type="text" id="compareInput" placeholder="输入号码，逗号分隔，例: 3,7,12,21,25,33" class="filter-input">
+                            <button class="btn-primary" onclick="runCompare()">🔍 对比</button>
+                        </div>
+                        <div id="compareResults"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Content: History Table -->
+        <section class="tab-content" id="contentHistory">
+            <div class="glass-card">
+                <div class="history-controls">
+                    <h3><span class="section-icon">📋</span> 历史开奖记录</h3>
+                    <div class="history-search">
+                        <input type="text" id="historySearch" placeholder="搜索期号..." class="filter-input">
+                    </div>
+                </div>
+                <div class="history-table-wrapper">
+                    <table class="history-table" id="historyTable">
+                        <thead>
+                            <tr>
+                                <th class="sortable" data-sort="period">期号 ▾</th>
+                                <th>开奖日期</th>
+                                <th>开奖号码</th>
+                                <th>和值</th>
+                                <th>奇偶比</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="historyPagination"></div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Data Source Modal -->
+    <div class="modal-overlay" id="dataSourceModal">
+        <div class="modal glass-card">
+            <div class="modal-header">
+                <h3>📡 数据源设置</h3>
+                <button class="modal-close" onclick="hideDataSourceModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="data-option">
+                    <h4>🌐 从 API 获取真实数据</h4>
+                    <p>从 500.com / sporttery.cn 获取真实历史开奖数据。</p>
+                    <div class="data-option-actions">
+                        <select id="apiRows">
+                            <option value="50">最近50期</option>
+                            <option value="100" selected>最近100期</option>
+                            <option value="200">最近200期</option>
+                        </select>
+                        <button class="btn-primary" onclick="fetchAPIData()">
+                            🔄 获取数据
+                        </button>
+                    </div>
+                    <div class="api-status" id="apiStatus"></div>
+                </div>
+                <hr class="modal-divider">
+                <div class="data-option">
+                    <h4>📁 导入 CSV 数据</h4>
+                    <p>从本地文件导入历史数据。格式：期号,日期,号码1,号码2,...</p>
+                    <input type="file" id="csvFileInput" accept=".csv,.txt" onchange="importCSVFile(this)">
+                </div>
+                <hr class="modal-divider">
+                <div class="data-option">
+                    <h4>🗑️ 缓存管理</h4>
+                    <p>已缓存的 API 数据（12小时有效）。</p>
+                    <button class="btn-secondary" onclick="clearCache()">清除缓存</button>
+                    <button class="btn-secondary" onclick="resetToSimulatedData()">恢复模拟数据</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-inner">
+            <p>⚠️ 本工具仅做数据分析参考，不构成任何购彩建议。请理性购彩，量力而行。</p>
+            <p class="footer-tech">Built with ❤️ · 支持6大彩种 · 7种预测策略 · 回测验证 · 数据可视化</p>
+        </div>
+    </footer>
+
+    <script src="data.js"></script>
+    <script src="analysis.js"></script>
+    <script src="charts.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
