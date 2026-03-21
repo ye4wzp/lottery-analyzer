@@ -24,6 +24,10 @@ import re
 
 PORT = 8899
 
+# MXNZP API credentials (free tier, international access)
+MXNZP_APP_ID = 'rsycjgkiljmjxtdj'
+MXNZP_APP_SECRET = 'uDBdgnobVlVJNe5Xx59hBNMl7cpJjSZe'
+
 # SSL context
 ssl_ctx = ssl.create_default_context()
 ssl_ctx.check_hostname = False
@@ -64,14 +68,22 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
                 result = self.fetch_500com('dlt', count)
         elif code == 'pl3':
             result = self.fetch_sporttery('pl3', count)
+            if not result:
+                result = self.fetch_mxnzp('pl3', count)
         elif code == 'pl5':
             result = self.fetch_sporttery('pl5', count)
+            if not result:
+                result = self.fetch_mxnzp('pl5', count)
         elif code == 'fc3d':
             result = self.fetch_zhcw_fc3d(count)
+            if not result:
+                result = self.fetch_mxnzp('fc3d', count)
         elif code == 'qlc':
             result = self.fetch_zhcw_qlc(count)
             if not result:
                 result = self.fetch_500com('qlc', count)
+            if not result:
+                result = self.fetch_mxnzp('qlc', count)
 
         # Global fallback: 开彩网
         if not result:
@@ -324,6 +336,88 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
         if rows:
             sys.stderr.write(f"[API] zhcw.com/qlc: got {len(rows)} records\n")
             return {'rows': rows[:count], 'source': 'zhcw.com', 'total': len(rows)}
+        return None
+
+    # ===== MXNZP API (international, works overseas) =====
+    def fetch_mxnzp(self, code, count):
+        """Fetch from mxnzp.com free API - works from any IP worldwide.
+        Free tier: QPS=1, so max 1 request per second."""
+        # MXNZP max size per request is 50
+        size = min(count, 50)
+        url = f"https://www.mxnzp.com/api/lottery/common/history?code={code}&size={size}&app_id={MXNZP_APP_ID}&app_secret={MXNZP_APP_SECRET}"
+        try:
+            req = urllib.request.Request(url, headers=HEADERS)
+            with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as response:
+                raw = json.loads(response.read())
+
+            if raw.get('code') != 1 or not raw.get('data'):
+                sys.stderr.write(f"[API] mxnzp/{code}: {raw.get('msg', 'no data')}\n")
+                return None
+
+            rows = []
+            for item in raw['data']:
+                open_code = item.get('openCode', '')
+                expect = item.get('expect', '')
+                time_str = item.get('time', '')[:10]
+
+                if code in ('fc3d', 'pl3'):
+                    nums = open_code.split(',')
+                    rows.append({
+                        'period': expect,
+                        'date': time_str,
+                        'main': [int(n) for n in nums[:3]],
+                        'bonus': [],
+                        'source': 'mxnzp.com'
+                    })
+                elif code == 'pl5':
+                    nums = open_code.split(',')
+                    rows.append({
+                        'period': expect,
+                        'date': time_str,
+                        'main': [int(n) for n in nums[:5]],
+                        'bonus': [],
+                        'source': 'mxnzp.com'
+                    })
+                elif code == 'qlc':
+                    parts = open_code.split('+')
+                    main_nums = [int(n) for n in parts[0].split(',')]
+                    bonus = [int(parts[1])] if len(parts) > 1 else []
+                    rows.append({
+                        'period': expect,
+                        'date': time_str,
+                        'main': sorted(main_nums),
+                        'bonus': bonus,
+                        'source': 'mxnzp.com'
+                    })
+                elif code == 'ssq':
+                    parts = open_code.split('+')
+                    main_nums = [int(n) for n in parts[0].split(',')]
+                    bonus = [int(parts[1])] if len(parts) > 1 else []
+                    rows.append({
+                        'period': expect,
+                        'date': time_str,
+                        'main': sorted(main_nums),
+                        'bonus': bonus,
+                        'source': 'mxnzp.com'
+                    })
+                elif code == 'dlt':
+                    parts = open_code.split('+')
+                    main_nums = [int(n) for n in parts[0].split(',')]
+                    bonus = [int(n) for n in parts[1].split(',')] if len(parts) > 1 else []
+                    rows.append({
+                        'period': expect,
+                        'date': time_str,
+                        'main': sorted(main_nums),
+                        'bonus': bonus,
+                        'source': 'mxnzp.com'
+                    })
+
+            if rows:
+                sys.stderr.write(f"[API] mxnzp/{code}: got {len(rows)} records\n")
+                return {'rows': rows, 'source': 'mxnzp.com', 'total': len(rows)}
+
+        except Exception as e:
+            sys.stderr.write(f"[API] mxnzp/{code} failed: {e}\n")
         return None
 
     # ===== 开彩网 (global fallback) =====
