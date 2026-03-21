@@ -3,13 +3,13 @@
 彩票数据分析大师 - 本地服务器
 提供静态文件服务 + 多源 API 代理（解决 CORS 问题）
 
-数据源：
-  - 双色球(SSQ):   500.com 数据图表 (HTML 解析)
-  - 大乐透(DLT):   体彩官网 sporttery.cn (JSON API)
-  - 排列三(PL3):   体彩官网 sporttery.cn (JSON API, gameNo=35)
-  - 排列五(PL5):   体彩官网 sporttery.cn (JSON API, gameNo=350133)
-  - 福彩3D(FC3D):  中彩网 zhcw.com (HTML 解析)
-  - 七乐彩(QLC):   中彩网 zhcw.com (HTML 解析)
+数据源优先级：
+  - 双色球(SSQ):   500.com (HTML) ✅ 国内外均可访问
+  - 大乐透(DLT):   sporttery.cn → 500.com fallback
+  - 排列三(PL3):   sporttery.cn → 开彩网 fallback
+  - 排列五(PL5):   sporttery.cn → 开彩网 fallback
+  - 福彩3D(FC3D):  zhcw.com → 开彩网 fallback
+  - 七乐彩(QLC):   zhcw.com → 500.com fallback
 
 Usage: python3 server.py
 """
@@ -55,19 +55,25 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
 
         result = None
 
-        # Route to correct data source
+        # Try sources in priority order with fallbacks
         if code == 'ssq':
-            result = self.fetch_500com_ssq(count)
+            result = self.fetch_500com('ssq', count)
         elif code == 'dlt':
-            result = self.fetch_sporttery(code, count)
-        elif code in ('pl3', 'pl5'):
-            result = self.fetch_sporttery(code, count)
+            result = self.fetch_sporttery('dlt', count)
+            if not result:
+                result = self.fetch_500com('dlt', count)
+        elif code == 'pl3':
+            result = self.fetch_sporttery('pl3', count)
+        elif code == 'pl5':
+            result = self.fetch_sporttery('pl5', count)
         elif code == 'fc3d':
             result = self.fetch_zhcw_fc3d(count)
         elif code == 'qlc':
             result = self.fetch_zhcw_qlc(count)
+            if not result:
+                result = self.fetch_500com('qlc', count)
 
-        # Fallback: 开彩网
+        # Global fallback: 开彩网
         if not result:
             result = self.fetch_kaicai(code, count)
 
@@ -76,53 +82,86 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
         else:
             self.send_error_json(502, f"All API sources failed for '{code}'")
 
-    # ===== 500.com SSQ (HTML parsing) =====
-    def fetch_500com_ssq(self, count):
-        url = f"https://datachart.500.com/ssq/history/newinc/history.php?limit={count}&sort=0"
+    # ===== 500.com (HTML parsing, works overseas) =====
+    def fetch_500com(self, code, count):
+        """Parse 500.com history pages - works from overseas servers.
+        Supports: ssq, dlt, qlc"""
+        code_map = {
+            'ssq': {'path': 'ssq', 'red_range': (2, 8), 'blue_range': (8, 9), 'min_tds': 9},
+            'dlt': {'path': 'dlt', 'red_range': (2, 7), 'blue_range': (7, 9), 'min_tds': 9},
+            'qlc': {'path': 'qlc', 'red_range': (2, 9), 'blue_range': (9, 10), 'min_tds': 10},
+        }
+        cfg = code_map.get(code)
+        if not cfg:
+            return None
+
+        url = f"https://datachart.500.com/{cfg['path']}/history/newinc/history.php?limit={count}&sort=0"
         try:
             req = urllib.request.Request(url, headers={
                 **HEADERS,
-                'Referer': 'https://datachart.500.com/ssq/'
+                'Referer': f"https://datachart.500.com/{cfg['path']}/"
             })
             with urllib.request.urlopen(req, timeout=15, context=ssl_ctx) as response:
                 html = response.read().decode('utf-8', errors='replace')
 
             rows = []
-            tr_pattern = re.compile(r'<tr class="t_tr1"[^>]*>(.*?)</tr>', re.DOTALL)
+            # Try t_tr1 class first (SSQ/DLT), then generic tr in chart table (QLC)
+            tr_matches = re.findall(r'<tr class="t_tr1"[^>]*>(.*?)</tr>', html, re.DOTALL)
+            if not tr_matches:
+                # QLC uses rows inside table#tablelist
+                table_match = re.search(r'<table[^>]*id="tablelist"[^>]*>(.*?)</table>', html, re.DOTALL)
+                if table_match:
+                    tr_matches = re.findall(r'<tr>(.*?)</tr>', table_match.group(1), re.DOTALL)
+
             td_pattern = re.compile(r'<td[^>]*>(.*?)</td>', re.DOTALL)
 
-            for tr_match in tr_pattern.finditer(html):
-                tds = td_pattern.findall(tr_match.group(1))
+            for tr_html in tr_matches:
+                tds = td_pattern.findall(tr_html)
                 clean = [re.sub(r'<[^>]+>', '', td).strip().replace('&nbsp;', '') for td in tds]
 
-                if len(clean) < 9:
+                if len(clean) < cfg['min_tds']:
                     continue
 
                 period = clean[1]
-                red_balls = [int(clean[i]) for i in range(2, 8) if clean[i].isdigit()]
-                blue_ball = int(clean[8]) if clean[8].isdigit() else None
+                if not period.isdigit():
+                    continue
 
+                r_start, r_end = cfg['red_range']
+                b_start, b_end = cfg['blue_range']
+
+                main_balls = []
+                for i in range(r_start, r_end):
+                    if i < len(clean) and clean[i].isdigit():
+                        main_balls.append(int(clean[i]))
+
+                bonus_balls = []
+                for i in range(b_start, b_end):
+                    if i < len(clean) and clean[i].isdigit():
+                        bonus_balls.append(int(clean[i]))
+
+                # Find date
                 date_str = ''
                 for td in reversed(clean):
                     if re.match(r'20\d{2}-\d{2}-\d{2}', td):
                         date_str = td
                         break
 
-                if len(red_balls) == 6 and blue_ball is not None:
+                expected_main = r_end - r_start
+                if len(main_balls) == expected_main:
                     rows.append({
                         'period': period,
                         'date': date_str,
-                        'main': sorted(red_balls),
-                        'bonus': [blue_ball],
+                        'main': sorted(main_balls),
+                        'bonus': bonus_balls,
                         'source': '500.com'
                     })
 
             if rows:
-                sys.stderr.write(f"[API] 500.com/ssq: got {len(rows)} records\n")
+                sys.stderr.write(f"[API] 500.com/{code}: got {len(rows)} records\n")
                 return {'rows': rows, 'source': '500.com', 'total': len(rows)}
 
         except Exception as e:
-            sys.stderr.write(f"[API] 500.com/ssq failed: {e}\n")
+            sys.stderr.write(f"[API] 500.com/{code} failed: {e}\n")
         return None
 
     # ===== sporttery.cn 体彩 (DLT, PL3, PL5) =====
@@ -171,7 +210,6 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
                         'source': 'sporttery.cn'
                     })
                 elif code == 'pl5' and len(nums) >= 5:
-                    # PL5 uses lotteryUnsortDrawresult (unsorted=original order)
                     unsorted = item.get('lotteryUnsortDrawresult', result)
                     pnums = unsorted.split()
                     rows.append({
@@ -192,10 +230,9 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
 
     # ===== 中彩网 zhcw.com FC3D (HTML parsing) =====
     def fetch_zhcw_fc3d(self, count):
-        """Fetch FC3D from kaijiang.zhcw.com, paginate if needed"""
         rows = []
-        per_page = 30  # zhcw shows ~30 per page
-        pages_needed = min((count // per_page) + 1, 7)  # max 7 pages = 210 records
+        per_page = 30
+        pages_needed = min((count // per_page) + 1, 7)
 
         for page in range(1, pages_needed + 1):
             url = f"https://kaijiang.zhcw.com/zhcw/html/3d/list_{page}.html"
@@ -216,7 +253,6 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
                     if not re.match(r'^\d{7}$', period_raw):
                         continue
 
-                    # Extract digits from the number cell
                     nums = re.findall(r'<em>(\d)</em>', tds[2])
                     if len(nums) >= 3:
                         rows.append({
@@ -241,7 +277,6 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
 
     # ===== 中彩网 zhcw.com QLC (HTML parsing) =====
     def fetch_zhcw_qlc(self, count):
-        """Fetch QLC from kaijiang.zhcw.com, paginate if needed"""
         rows = []
         per_page = 20
         pages_needed = min((count // per_page) + 1, 10)
@@ -265,8 +300,6 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
                     if not re.match(r'^\d{7}$', period_raw):
                         continue
 
-                    # QLC: 7 basic + 1 special number
-                    # Numbers are in tds[2] formatted with whitespace
                     nums_text = re.sub(r'<[^>]+>', ' ', tds[2]).strip()
                     nums = re.findall(r'\d+', nums_text)
 
@@ -293,7 +326,7 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
             return {'rows': rows[:count], 'source': 'zhcw.com', 'total': len(rows)}
         return None
 
-    # ===== 开彩网 (fallback) =====
+    # ===== 开彩网 (global fallback) =====
     def fetch_kaicai(self, code, count):
         url = f"http://f.apiplus.net/{code}-{count}.json"
         try:
@@ -336,7 +369,8 @@ def main():
     with http.server.HTTPServer(("", PORT), LotteryProxyHandler) as httpd:
         print(f"🎰 彩票数据分析大师")
         print(f"   http://localhost:{PORT}")
-        print(f"   SSQ → 500.com | DLT/PL3/PL5 → sporttery.cn | FC3D/QLC → zhcw.com")
+        print(f"   SSQ → 500.com | DLT → sporttery/500 | FC3D → zhcw | QLC → zhcw/500")
+        print(f"   PL3/PL5 → sporttery | 全局兜底 → 开彩网")
         print(f"   Ctrl+C 停止\n")
         try:
             httpd.serve_forever()
