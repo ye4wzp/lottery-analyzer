@@ -1770,94 +1770,388 @@ body.light-theme .btn-data-source {
 }
 
 /* ============= ENHANCED MOBILE RESPONSIVE ============= */
+/* ============= MOBILE OPTIMIZATIONS (480px) ============= */
 @media (max-width: 480px) {
-    .header-actions {
-        flex-wrap: wrap;
-        justify-content: center;
+    /* --- Header: Compact --- */
+    .header {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .header-inner {
+        padding: 8px 12px;
+        gap: 6px;
+    }
+
+    .header-brand {
         gap: 8px;
     }
 
+    .header-brand h1 {
+        font-size: 16px;
+    }
+
+    .header-brand p {
+        display: none;
+    }
+
+    .header-balls .ball {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+        line-height: 28px;
+    }
+
+    .header-actions {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 6px;
+    }
+
     .countdown-badge {
-        font-size: 11px;
-        padding: 4px 10px;
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .cache-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    .theme-toggle {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
     }
 
     .disclaimer-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+    }
+
+    /* --- Lottery Nav: Horizontal scroll --- */
+    .lottery-nav {
+        position: sticky;
+        top: 70px;
+        z-index: 99;
+    }
+
+    .nav-inner {
+        padding: 8px 12px;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .nav-group-label {
         font-size: 11px;
-        padding: 4px 10px;
+        margin-bottom: 2px;
     }
 
     .nav-group-btns {
-        flex-direction: column;
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 6px;
+        padding-bottom: 4px;
+        scrollbar-width: none;
+    }
+
+    .nav-group-btns::-webkit-scrollbar {
+        display: none;
     }
 
     .nav-btn {
         min-width: unset;
-        padding: 8px 12px;
+        flex-shrink: 0;
+        padding: 6px 10px;
+        font-size: 12px;
+        gap: 4px;
     }
 
+    .nav-btn .emoji {
+        font-size: 16px;
+    }
+
+    .nav-btn .nav-info h3 {
+        font-size: 12px;
+    }
+
+    .nav-btn .nav-info p {
+        font-size: 9px;
+    }
+
+    /* --- Main Content --- */
+    .main-content {
+        padding: 8px;
+    }
+
+    /* --- Stats Grid: 2x2 compact --- */
+    .stats-overview {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 6px;
+    }
+
+    .stat-card {
+        padding: 10px;
+    }
+
+    .stat-emoji {
+        font-size: 20px;
+    }
+
+    .stat-value {
+        font-size: 20px;
+    }
+
+    .stat-label {
+        font-size: 10px;
+    }
+
+    /* --- Tab Bar: Horizontal scroll --- */
     .tab-bar-wrapper {
         flex-direction: column;
-        gap: 10px;
+        gap: 6px;
+        margin: 8px 0;
     }
 
     .tab-bar {
-        flex-wrap: wrap;
+        display: flex;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
         gap: 4px;
+        padding-bottom: 4px;
+        flex-wrap: nowrap;
+        scrollbar-width: none;
+    }
+
+    .tab-bar::-webkit-scrollbar {
+        display: none;
     }
 
     .tab-btn {
         font-size: 12px;
         padding: 6px 10px;
+        white-space: nowrap;
+        flex-shrink: 0;
     }
 
     .tab-btn span {
         display: none;
     }
 
-    .filter-row {
+    /* --- Data Source / Export buttons --- */
+    .data-source-section {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .data-source-section button,
+    .data-source-section select {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+
+    /* --- Charts: Full width, less padding --- */
+    .chart-card, .content-card {
+        padding: 12px;
+        margin-bottom: 8px;
+    }
+
+    .chart-card h3, .content-card h3 {
+        font-size: 14px;
+    }
+
+    .content-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .content-grid.grid-2 {
         grid-template-columns: 1fr;
     }
 
+    /* --- Balls: Smaller on mobile --- */
+    .latest-numbers .ball {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+        line-height: 36px;
+    }
+
+    .ball.ball-sm {
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+        line-height: 24px;
+    }
+
+    /* --- Heatmap: Tighter grid --- */
+    .heatmap-container {
+        grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+        gap: 4px;
+    }
+
+    .heatmap-item {
+        padding: 4px;
+        font-size: 11px;
+    }
+
+    /* --- Top Numbers (Hot/Cold): 5 per row --- */
+    .top-numbers {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .top-number-item {
+        flex: 0 0 calc(20% - 8px);
+        text-align: center;
+    }
+
+    .top-numbers .ball {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+        line-height: 36px;
+    }
+
+    /* --- Filter Panel --- */
+    .filter-panel {
+        padding: 10px;
+    }
+
+    .filter-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .filter-row input {
+        font-size: 12px;
+    }
+
+    /* --- Multi-bet --- */
     .multi-bet-control {
         flex-direction: column;
         align-items: stretch;
+        gap: 8px;
     }
 
+    /* --- Prediction cards --- */
     .prediction-strategies {
         grid-template-columns: 1fr;
+        gap: 8px;
     }
 
+    .prediction-card {
+        padding: 12px;
+    }
+
+    .prediction-card h4 {
+        font-size: 14px;
+    }
+
+    .strategy-numbers-list .number-set {
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+
+    /* --- Compare panel --- */
     .compare-input-row {
         flex-direction: column;
+        gap: 8px;
+    }
+
+    /* --- History table --- */
+    .history-controls {
+        flex-direction: column;
+        gap: 8px;
     }
 
     .history-search {
         width: 100%;
     }
 
-    .ball.ball-sm {
-        width: 26px;
-        height: 26px;
+    .history-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .history-table {
         font-size: 11px;
-        line-height: 26px;
+        min-width: 500px;
+    }
+
+    .history-table th,
+    .history-table td {
+        padding: 6px 8px;
+    }
+
+    /* --- Pagination --- */
+    .pagination {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .page-btn {
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    /* --- Backtest --- */
+    .backtest-panel {
+        padding: 10px;
+    }
+
+    .backtest-table {
+        font-size: 11px;
+    }
+
+    .backtest-table th,
+    .backtest-table td {
+        padding: 4px 6px;
+    }
+
+    /* --- Footer --- */
+    footer {
+        padding: 16px;
+        font-size: 11px;
+    }
+
+    /* --- Accordion --- */
+    .accordion-header {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    /* --- Missing values table --- */
+    .missing-table {
+        font-size: 11px;
+    }
+
+    .missing-table th,
+    .missing-table td {
+        padding: 4px 6px;
     }
 }
 
+/* ============= TABLET OPTIMIZATIONS (768px) ============= */
 @media (max-width: 768px) {
     .header-inner {
         padding: 12px 16px;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
     }
 
     .nav-inner {
-        padding: 12px 16px;
+        padding: 10px 16px;
         flex-direction: column;
     }
 
     .main-content {
-        padding: 16px;
+        padding: 12px;
     }
 
     .stats-overview {
@@ -1889,7 +2183,7 @@ body.light-theme .btn-data-source {
     }
 
     .prediction-card {
-        padding: 20px;
+        padding: 16px;
     }
 
     .content-grid.grid-2 {
