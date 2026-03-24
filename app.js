@@ -25,8 +25,12 @@ async function autoLoadAPIData() {
     const status = document.getElementById('dataSourceLabel');
     status.textContent = '加载中...';
 
+    // Show loading overlay
+    const overlay = document.getElementById('loadingOverlay');
+    if (overlay) overlay.classList.add('active');
+
     try {
-        const result = await DataAPI.loadData(currentType, 100);
+        const result = await DataAPI.loadData(currentType, 200);
         if (result.source === 'api' || result.source === 'cache') {
             document.getElementById('dataStatusDot').classList.add('live');
             const label = result.source === 'cache' ? '缓存' : 'API';
@@ -39,6 +43,8 @@ async function autoLoadAPIData() {
     } catch (e) {
         document.getElementById('dataStatusDot').classList.remove('live');
         status.textContent = '模拟数据';
+    } finally {
+        if (overlay) overlay.classList.remove('active');
     }
 }
 
@@ -139,9 +145,11 @@ function updateAll() {
     updateLabels(config);
     updateStats(draws, config);
     updateLatestDraw(draws, config);
+    updateDimensionCards(draws, config);
     updateFrequencyTab(draws, config);
     updateTrendTab(draws, config);
     updateMissingTab(draws, config);
+    updateComboTab(draws, config);
     updatePatternTab(draws, config);
     generateAllPredictions();
 }
@@ -205,6 +213,37 @@ function updateLatestDraw(draws, config) {
             container.appendChild(ball);
         });
     }
+}
+
+// ============= DIMENSION CARDS =============
+function updateDimensionCards(draws, config) {
+    const container = document.getElementById('dimensionCards');
+    if (!container || draws.length === 0) return;
+
+    const dim = Analysis.dimensionAnalysis(draws, config);
+
+    container.innerHTML = `
+        <div class="dimension-card">
+            <div class="dim-label">奇偶比</div>
+            <div class="dim-value">${dim.oddEven}</div>
+            <div class="dim-desc">奇:偶</div>
+        </div>
+        <div class="dimension-card">
+            <div class="dim-label">大小比</div>
+            <div class="dim-value">${dim.bigSmall}</div>
+            <div class="dim-desc">≥${dim.mid}:<${dim.mid}</div>
+        </div>
+        <div class="dimension-card">
+            <div class="dim-label">和值</div>
+            <div class="dim-value">${dim.sum}</div>
+            <div class="dim-desc">均值${dim.avgSum}</div>
+        </div>
+        <div class="dimension-card">
+            <div class="dim-label">跨度</div>
+            <div class="dim-value">${dim.span}</div>
+            <div class="dim-desc">均值${dim.avgSpan}</div>
+        </div>
+    `;
 }
 
 // ============= FREQUENCY TAB =============
@@ -288,6 +327,92 @@ function updateMissingTab(draws, config) {
             </div>
         `).join('')
         : '<p style="color: var(--text-muted); font-size: 13px;">当前无连续出现号码</p>';
+
+    // Enhanced missing detail table
+    renderMissingDetailTable(draws, config);
+}
+
+function renderMissingDetailTable(draws, config) {
+    const tbody = document.getElementById('missingDetailBody');
+    if (!tbody) return;
+
+    const data = Analysis.enhancedMissingValues(draws, config.mainRange, 'main', config);
+    const avgMissing = data.reduce((acc, d) => acc + d.current, 0) / data.length;
+
+    tbody.innerHTML = data.map(d => {
+        const cls = d.current > avgMissing * 2 ? 'missing-danger' :
+                    d.current > avgMissing ? 'missing-warning' : 'missing-safe';
+        return `<tr>
+            <td><span class="ball ball-sm ball-${config.mainColor}">${d.num}</span></td>
+            <td class="${cls}">${d.current}</td>
+            <td>${d.max}</td>
+            <td>${d.avg}</td>
+            <td>${d.frequency}</td>
+            <td>${d.ratio}%</td>
+        </tr>`;
+    }).join('');
+
+    // Sortable headers
+    document.querySelectorAll('.missing-detail-table th[data-sort]').forEach(th => {
+        th.onclick = () => {
+            const field = th.dataset.sort;
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const asc = th.classList.toggle('asc');
+            rows.sort((a, b) => {
+                const va = parseFloat(a.cells[['num','current','max','avg','frequency','ratio'].indexOf(field)].textContent);
+                const vb = parseFloat(b.cells[['num','current','max','avg','frequency','ratio'].indexOf(field)].textContent);
+                return asc ? va - vb : vb - va;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+        };
+    });
+}
+
+// ============= COMBO TAB =============
+function updateComboTab(draws, config) {
+    if (!config.mainCount || config.mainCount < 2) return;
+
+    // Pair frequency
+    const pairs = Analysis.pairFrequency(draws, 'main', Math.min(draws.length, 100), 20);
+    const maxPairCount = pairs.length > 0 ? pairs[0].count : 1;
+
+    const pairBody = document.getElementById('pairTableBody');
+    if (pairBody) {
+        pairBody.innerHTML = pairs.map((p, i) => `
+            <tr>
+                <td><span class="combo-rank ${i < 3 ? 'top3' : ''}">${i + 1}</span></td>
+                <td>
+                    <div class="combo-balls">
+                        ${p.nums.map(n => `<span class="ball ball-sm ball-${config.mainColor}">${n}</span>`).join('')}
+                    </div>
+                </td>
+                <td>${p.count}次</td>
+                <td><div class="combo-bar" style="width: ${(p.count / maxPairCount * 100).toFixed(0)}%"></div></td>
+            </tr>
+        `).join('');
+    }
+
+    // Triplet frequency (only for lotteries with 3+ main numbers)
+    if (config.mainCount >= 3) {
+        const triplets = Analysis.tripletFrequency(draws, 'main', Math.min(draws.length, 100), 10);
+        const maxTripletCount = triplets.length > 0 ? triplets[0].count : 1;
+
+        const tripletBody = document.getElementById('tripletTableBody');
+        if (tripletBody) {
+            tripletBody.innerHTML = triplets.map((t, i) => `
+                <tr>
+                    <td><span class="combo-rank ${i < 3 ? 'top3' : ''}">${i + 1}</span></td>
+                    <td>
+                        <div class="combo-balls">
+                            ${t.nums.map(n => `<span class="ball ball-sm ball-${config.mainColor}">${n}</span>`).join('')}
+                        </div>
+                    </td>
+                    <td>${t.count}次</td>
+                    <td><div class="combo-bar" style="width: ${(t.count / maxTripletCount * 100).toFixed(0)}%"></div></td>
+                </tr>
+            `).join('');
+        }
+    }
 }
 
 // ============= PATTERN TAB =============
@@ -771,3 +896,91 @@ window.toggleCompare = toggleCompare;
 window.runCompare = runCompare;
 window.goHistoryPage = goHistoryPage;
 window.toggleTheme = toggleTheme;
+window.exportFullReport = exportFullReport;
+
+// ============= FULL REPORT EXPORT =============
+async function exportFullReport() {
+    const config = LOTTERY_CONFIG[currentType];
+    const draws = LOTTERY_DATA[currentType];
+    const dim = Analysis.dimensionAnalysis(draws, config);
+
+    // Create a canvas for the report
+    const W = 800, lineH = 30;
+    const charts = document.querySelectorAll('canvas');
+    const chartImages = [];
+
+    // Capture all visible chart canvases
+    for (const chart of charts) {
+        if (chart.offsetParent !== null || chart.closest('.tab-content.active')) {
+            try {
+                const img = new Image();
+                img.src = chart.toDataURL('image/png');
+                await new Promise(r => { img.onload = r; img.onerror = r; });
+                chartImages.push(img);
+            } catch (e) { /* skip */ }
+        }
+    }
+
+    // Calculate total height
+    const headerH = 160;
+    const chartH = chartImages.reduce((acc, img) => acc + Math.round(img.height * (W - 40) / img.width) + 40, 0);
+    const totalH = headerH + chartH + 100;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = totalH;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = '#0a0a1a';
+    ctx.fillRect(0, 0, W, totalH);
+
+    // Header
+    ctx.fillStyle = '#a855f7';
+    ctx.font = 'bold 28px Inter, sans-serif';
+    ctx.fillText(`🎰 ${config.name} 分析报告`, 20, 40);
+
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.font = '14px Inter, sans-serif';
+    ctx.fillText(`生成时间: ${new Date().toLocaleString('zh-CN')} | 数据量: ${draws.length}期`, 20, 65);
+
+    // Latest draw info
+    const latest = draws[draws.length - 1];
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.fillText(`最新: 第${latest.period}期 [${latest.main.join(', ')}]`, 20, 95);
+
+    // Dimension summary
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = '14px Inter, sans-serif';
+    ctx.fillText(`奇偶${dim.oddEven} | 大小${dim.bigSmall} | 和值${dim.sum} | 跨度${dim.span}`, 20, 120);
+
+    // Draw line separator
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(20, 140);
+    ctx.lineTo(W - 20, 140);
+    ctx.stroke();
+
+    // Draw chart images
+    let y = headerH;
+    for (const img of chartImages) {
+        const drawW = W - 40;
+        const drawH = Math.round(img.height * drawW / img.width);
+        ctx.drawImage(img, 20, y, drawW, drawH);
+        y += drawH + 20;
+    }
+
+    // Footer
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '12px Inter, sans-serif';
+    ctx.fillText('⚠️ 仅供参考，理性购彩 | 彩票数据分析大师', 20, y + 20);
+
+    // Download
+    const link = document.createElement('a');
+    link.download = `${config.name}_分析报告_${new Date().toISOString().slice(0, 10)}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+

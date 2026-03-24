@@ -25,7 +25,7 @@
         <div class="header-inner">
             <div class="logo">
                 <div class="logo-icon">
-                    <span class="ball ball-red">7</span>
+                    <span class="ball ball-red header-ball">7</span>
                     <span class="ball ball-blue">12</span>
                 </div>
                 <div class="logo-text">
@@ -140,12 +140,24 @@
         </section>
 
         <!-- Latest Draw -->
-        <section class="section glass-card" id="latestDraw">
+        <section class="section glass-card" id="latestDraw" style="position:relative;">
+            <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"></div></div>
             <div class="section-header">
                 <h2><span class="section-icon">🎯</span> 最新开奖</h2>
                 <span class="draw-info" id="latestDrawInfo">第 --- 期</span>
             </div>
-            <div class="latest-numbers" id="latestNumbers"></div>
+            <div class="latest-numbers" id="latestNumbers">
+                <div class="skeleton-wrapper">
+                    <div class="skeleton skeleton-ball"></div>
+                    <div class="skeleton skeleton-ball"></div>
+                    <div class="skeleton skeleton-ball"></div>
+                    <div class="skeleton skeleton-ball"></div>
+                    <div class="skeleton skeleton-ball"></div>
+                    <div class="skeleton skeleton-ball"></div>
+                </div>
+            </div>
+            <!-- Dimension cards -->
+            <div class="dimension-grid" id="dimensionCards"></div>
         </section>
 
         <!-- Tabs -->
@@ -159,6 +171,9 @@
                 </button>
                 <button class="tab-btn" data-tab="missing">
                     <span>🔍</span> 遗漏分析
+                </button>
+                <button class="tab-btn" data-tab="combo">
+                    <span>🔗</span> 组合分析
                 </button>
                 <button class="tab-btn" data-tab="pattern">
                     <span>🧩</span> 形态分析
@@ -180,6 +195,7 @@
                     <button onclick="exportAnalysisCSV()">📊 统计分析 (CSV)</button>
                     <button onclick="exportPredictionsTxt()">📝 推荐号码 (TXT)</button>
                     <button onclick="exportPredictionsImg()">🖼️ 推荐号码 (图片)</button>
+                    <button onclick="exportFullReport()">📋 完整分析报告 (PNG)</button>
                 </div>
             </div>
         </div>
@@ -240,9 +256,27 @@
         <!-- Tab Content: Missing Analysis -->
         <section class="tab-content" id="contentMissing">
             <div class="glass-card">
-                <h3><span class="section-icon">🔍</span> 号码遗漏值表</h3>
-                <p class="section-desc">遗漏值 = 该号码已经连续多少期未出现。遗漏值越大，理论上出现的概率越高（但不保证）。</p>
+                <h3><span class="section-icon">🔍</span> 号码遗漏值热力图</h3>
+                <p class="section-desc">颜色越深 = 遗漏值越大 = 越久未出现。点击号码查看详情。</p>
                 <div class="heatmap-container" id="missingHeatmap"></div>
+            </div>
+            <div class="glass-card">
+                <h3><span class="section-icon">📋</span> 遗漏值详情表（可排序）</h3>
+                <div style="overflow-x:auto;">
+                    <table class="missing-detail-table" id="missingDetailTable">
+                        <thead>
+                            <tr>
+                                <th data-sort="num">号码 ▾</th>
+                                <th data-sort="current">当前遗漏</th>
+                                <th data-sort="max">最大遗漏</th>
+                                <th data-sort="avg">平均遗漏</th>
+                                <th data-sort="frequency">出现次数</th>
+                                <th data-sort="ratio">出现率</th>
+                            </tr>
+                        </thead>
+                        <tbody id="missingDetailBody"></tbody>
+                    </table>
+                </div>
             </div>
             <div class="content-grid grid-2">
                 <div class="glass-card">
@@ -252,6 +286,32 @@
                 <div class="glass-card">
                     <h3>🔄 连续出现号码</h3>
                     <div class="number-list" id="consecutiveNumbers"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Content: Combination Analysis -->
+        <section class="tab-content" id="contentCombo">
+            <div class="content-grid grid-2">
+                <div class="glass-card">
+                    <h3><span class="section-icon">🔗</span> 二码同出 TOP 20</h3>
+                    <p class="section-desc">近100期内最常一起出现的2个号码组合</p>
+                    <div style="overflow-x:auto; max-height:500px;">
+                        <table class="combo-table" id="pairTable">
+                            <thead><tr><th>#</th><th>号码组合</th><th>同出次数</th><th>频率</th></tr></thead>
+                            <tbody id="pairTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <h3><span class="section-icon">🔗</span> 三码同出 TOP 10</h3>
+                    <p class="section-desc">近100期内最常一起出现的3个号码组合</p>
+                    <div style="overflow-x:auto; max-height:500px;">
+                        <table class="combo-table" id="tripletTable">
+                            <thead><tr><th>#</th><th>号码组合</th><th>同出次数</th><th>频率</th></tr></thead>
+                            <tbody id="tripletTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </section>

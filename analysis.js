@@ -759,3 +759,174 @@ const Backtester = {
     }
 };
 
+// ===== EXTENDED ANALYSIS =====
+
+/**
+ * Pair frequency analysis - Top N most frequent 2-number combinations
+ */
+Analysis.pairFrequency = function(draws, field, recentN = 100, topK = 20) {
+    const recent = draws.slice(-recentN);
+    const pairs = {};
+
+    recent.forEach(d => {
+        const nums = (d[field] || []).sort((a, b) => a - b);
+        for (let i = 0; i < nums.length; i++) {
+            for (let j = i + 1; j < nums.length; j++) {
+                const key = `${nums[i]}-${nums[j]}`;
+                pairs[key] = (pairs[key] || 0) + 1;
+            }
+        }
+    });
+
+    return Object.entries(pairs)
+        .map(([pair, count]) => ({ pair, nums: pair.split('-').map(Number), count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, topK);
+};
+
+/**
+ * Triplet frequency analysis - Top N most frequent 3-number combinations
+ */
+Analysis.tripletFrequency = function(draws, field, recentN = 100, topK = 10) {
+    const recent = draws.slice(-recentN);
+    const triplets = {};
+
+    recent.forEach(d => {
+        const nums = (d[field] || []).sort((a, b) => a - b);
+        for (let i = 0; i < nums.length; i++) {
+            for (let j = i + 1; j < nums.length; j++) {
+                for (let k = j + 1; k < nums.length; k++) {
+                    const key = `${nums[i]}-${nums[j]}-${nums[k]}`;
+                    triplets[key] = (triplets[key] || 0) + 1;
+                }
+            }
+        }
+    });
+
+    return Object.entries(triplets)
+        .map(([triplet, count]) => ({ triplet, nums: triplet.split('-').map(Number), count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, topK);
+};
+
+/**
+ * Enhanced missing values - current, max, and average missing for each number
+ */
+Analysis.enhancedMissingValues = function(draws, range, field, config) {
+    const start = config && config.isDigit ? 0 : 1;
+    const result = [];
+
+    for (let n = start; n <= range; n++) {
+        let currentMissing = 0;
+        let maxMissing = 0;
+        let totalMissing = 0;
+        let missingCount = 0;
+        let streak = 0;
+
+        for (let i = draws.length - 1; i >= 0; i--) {
+            const nums = draws[i][field] || [];
+            if (nums.includes(n)) {
+                if (i === draws.length - 1 - currentMissing && currentMissing === streak) {
+                    // still counting current missing
+                }
+                if (streak > 0) {
+                    maxMissing = Math.max(maxMissing, streak);
+                    totalMissing += streak;
+                    missingCount++;
+                }
+                streak = 0;
+            } else {
+                streak++;
+                if (i === draws.length - 1 - streak + 1 && currentMissing === 0 && streak > 0) {
+                    // first gap from the end
+                }
+            }
+        }
+        if (streak > 0) {
+            maxMissing = Math.max(maxMissing, streak);
+            totalMissing += streak;
+            missingCount++;
+        }
+
+        // Simpler calculation
+        let curMissing = 0;
+        for (let i = draws.length - 1; i >= 0; i--) {
+            if ((draws[i][field] || []).includes(n)) break;
+            curMissing++;
+        }
+
+        // Count all gaps
+        let gaps = [];
+        let gapLen = 0;
+        for (let i = 0; i < draws.length; i++) {
+            if ((draws[i][field] || []).includes(n)) {
+                if (gapLen > 0) gaps.push(gapLen);
+                gapLen = 0;
+            } else {
+                gapLen++;
+            }
+        }
+        if (gapLen > 0) gaps.push(gapLen);
+
+        const maxGap = gaps.length > 0 ? Math.max(...gaps) : 0;
+        const avgGap = gaps.length > 0 ? (gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(1) : 0;
+        const freq = draws.filter(d => (d[field] || []).includes(n)).length;
+
+        result.push({
+            num: n,
+            current: curMissing,
+            max: maxGap,
+            avg: parseFloat(avgGap),
+            frequency: freq,
+            ratio: ((freq / draws.length) * 100).toFixed(1)
+        });
+    }
+
+    return result;
+};
+
+/**
+ * Dimension analysis for latest draw - odd/even, big/small, sum, span
+ */
+Analysis.dimensionAnalysis = function(draws, config) {
+    const latest = draws[draws.length - 1];
+    const nums = latest.main || [];
+    const mid = config.isDigit ? 5 : Math.ceil(config.mainRange / 2);
+
+    const odds = nums.filter(n => n % 2 === 1).length;
+    const evens = nums.length - odds;
+    const bigs = nums.filter(n => n >= mid).length;
+    const smalls = nums.length - bigs;
+    const sum = nums.reduce((a, b) => a + b, 0);
+    const span = nums.length > 0 ? Math.max(...nums) - Math.min(...nums) : 0;
+
+    // Historical averages for last 50 draws
+    const recent = draws.slice(-50);
+    const avgSum = recent.reduce((acc, d) => acc + (d.main || []).reduce((a, b) => a + b, 0), 0) / recent.length;
+    const avgSpan = recent.reduce((acc, d) => {
+        const m = d.main || [];
+        return acc + (m.length > 0 ? Math.max(...m) - Math.min(...m) : 0);
+    }, 0) / recent.length;
+
+    return {
+        oddEven: `${odds}:${evens}`,
+        bigSmall: `${bigs}:${smalls}`,
+        sum,
+        span,
+        avgSum: Math.round(avgSum),
+        avgSpan: Math.round(avgSpan),
+        mid
+    };
+};
+
+/**
+ * Sum trend - sum values for each draw over time
+ */
+Analysis.sumTrendData = function(draws, recentN = 30) {
+    const recent = draws.slice(-recentN);
+    return recent.map(d => ({
+        period: d.period,
+        sum: (d.main || []).reduce((a, b) => a + b, 0)
+    }));
+};
+
