@@ -24,9 +24,9 @@ import re
 
 PORT = 8899
 
-# MXNZP API credentials (free tier, international access)
-MXNZP_APP_ID = 'rsycjgkiljmjxtdj'
-MXNZP_APP_SECRET = 'uDBdgnobVlVJNe5Xx59hBNMl7cpJjSZe'
+# Optional MXNZP API credentials for an additional fallback data source.
+MXNZP_APP_ID = os.environ.get('MXNZP_APP_ID', '')
+MXNZP_APP_SECRET = os.environ.get('MXNZP_APP_SECRET', '')
 
 # SSL context
 ssl_ctx = ssl.create_default_context()
@@ -342,6 +342,10 @@ class LotteryProxyHandler(http.server.SimpleHTTPRequestHandler):
     def fetch_mxnzp(self, code, count):
         """Fetch from mxnzp.com free API - works from any IP worldwide.
         Free tier: QPS=1, so max 1 request per second."""
+        if not MXNZP_APP_ID or not MXNZP_APP_SECRET:
+            sys.stderr.write(f"[API] mxnzp/{code}: skipped, MXNZP credentials not configured\n")
+            return None
+
         # MXNZP max size per request is 50
         size = min(count, 50)
         url = f"https://www.mxnzp.com/api/lottery/common/history?code={code}&size={size}&app_id={MXNZP_APP_ID}&app_secret={MXNZP_APP_SECRET}"
